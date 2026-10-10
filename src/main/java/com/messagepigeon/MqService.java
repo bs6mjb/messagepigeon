@@ -29,6 +29,14 @@ import javax.net.ssl.TrustManagerFactory;
 public final class MqService implements AutoCloseable {
     private static final int COMMIT_BATCH = 500;
 
+    /** Receives progress from a long operation. {@code total} is -1 when it is not known. Called on the worker thread. */
+    @FunctionalInterface
+    public interface Progress {
+        Progress NONE = (phase, done, total) -> { };
+
+        void step(String phase, int done, int total);
+    }
+
     private MQQueueManager qm;
     private String qmName = "";
 
@@ -101,8 +109,18 @@ public final class MqService implements AutoCloseable {
 
     /** Non-destructively reads up to {@code max} messages (oldest first). */
     public List<MessageRecord> browse(String queue, int max) throws MQException, IOException {
+        return browse(queue, max, Progress.NONE);
+    }
+
+    /** As {@link #browse(String, int)}, reporting each message read (the total is the lower of the depth and max). */
+    public List<MessageRecord> browse(String queue, int max, Progress progress) throws MQException, IOException {
+        int total = Math.min(depth(queue), max);
+        progress.step("Reading messages", 0, total > 0 ? total : -1);
         List<MessageRecord> out = new ArrayList<>();
-        browseEach(queue, max, out::add);
+        browseEach(queue, max, r -> {
+            out.add(r);
+            progress.step("Reading messages", out.size(), Math.max(total, out.size()));
+        });
         return out;
     }
 
@@ -209,7 +227,12 @@ public final class MqService implements AutoCloseable {
     }
 
     public int put(String queue, List<MessageRecord> records) throws MQException, IOException {
+        return put(queue, records, Progress.NONE);
+    }
+
+    public int put(String queue, List<MessageRecord> records, Progress progress) throws MQException, IOException {
         MQQueue q = open(queue, MQConstants.MQOO_OUTPUT);
+        int total = records.size();
         MQPutMessageOptions pmo = new MQPutMessageOptions();
         pmo.options = MQConstants.MQPMO_SYNCPOINT;
         int n = 0;
@@ -222,7 +245,9 @@ public final class MqService implements AutoCloseable {
                     qm.commit();
                     inBatch = 0;
                 }
+                progress.step("Adding messages", n, total);
             }
+            progress.step("Committing", n, total);
             qm.commit();
         } catch (MQException | IOException | RuntimeException e) {
             try {
@@ -304,24 +329,29 @@ public final class MqService implements AutoCloseable {
     }
 
     /** Writes the given messages to a plain-text export file (see {@link ExportFormat}). */
-    public static void exportRecords(List<MessageRecord> records, Path file, String source) throws IOException {
+    public static void exportRecords(List<MessageRecord> records, Path file, String source, Progress progress)
+            throws IOException {
         try (BufferedWriter w = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
             ExportFormat.writeHeader(w, source);
             int n = 0;
             for (MessageRecord r : records) {
                 ExportFormat.writeMessage(w, ++n, r);
+                progress.step("Exporting messages", n, records.size());
             }
         }
     }
 
     /** Streams the whole queue to a plain-text export file. @return the number of messages written. */
-    public int exportAll(String queue, Path file) throws MQException, IOException {
+    public int exportAll(String queue, Path file, Progress progress) throws MQException, IOException {
+        progress.step("Counting messages", 0, -1);
+        int total = depth(queue); // a guide only: the queue can change while we read it
         try (BufferedWriter w = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
             ExportFormat.writeHeader(w, qmName + " / " + queue);
             int[] n = {0};
             return browseEach(queue, Integer.MAX_VALUE, r -> {
                 try {
                     ExportFormat.writeMessage(w, ++n[0], r);
+                    progress.step("Exporting messages", n[0], Math.max(total, n[0]));
                 } catch (IOException e) {
                     throw new java.io.UncheckedIOException(e);
                 }
@@ -336,8 +366,9 @@ public final class MqService implements AutoCloseable {
         return ExportFormat.isExportFile(file);
     }
 
-    public int importBackup(String queue, Path file) throws MQException, IOException {
-        return put(queue, ExportFormat.read(file));
+    public int importBackup(String queue, Path file, Progress progress) throws MQException, IOException {
+        progress.step("Reading the export file", 0, -1);
+        return put(queue, ExportFormat.read(file), progress);
     }
 
     /** The regular, non-hidden files directly inside a folder (subfolders are not searched), sorted by name. */

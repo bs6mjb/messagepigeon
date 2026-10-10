@@ -5,6 +5,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -89,6 +90,8 @@ public final class MainFrame extends JFrame {
     private Action openQueueAction;
     private Action closeTabAction;
     private Action disconnectAllAction;
+    private Action exportProfilesAction;
+    private Action importProfilesAction;
     private Action exitAction;
     private Action refreshAction;
     private Action insertAction;
@@ -140,6 +143,10 @@ public final class MainFrame extends JFrame {
                 KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_W, ctrl), this::closeCurrentTab);
         disconnectAllAction = action("Disconnect All", MenuIcons.Glyph.DISCONNECT,
                 "Disconnect from every queue manager and close all tabs", null, this::disconnectAll);
+        exportProfilesAction = action("Export Profiles to File...", MenuIcons.Glyph.EXPORT,
+                "Save your connection profiles to a file, without any passwords", null, () -> exportProfiles(profiles));
+        importProfilesAction = action("Import Profiles from File...", MenuIcons.Glyph.IMPORT,
+                "Add the connection profiles from a file made by Export Profiles to File", null, this::importProfiles);
         exitAction = action("Exit", MenuIcons.Glyph.EXIT, "Exit " + Ui.TITLE,
                 KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_Q, ctrl),
                 () -> dispatchEvent(new WindowEvent(this, WindowEvent.WINDOW_CLOSING)));
@@ -179,6 +186,9 @@ public final class MainFrame extends JFrame {
         file.add(menuItem(closeTabAction));
         file.addSeparator();
         file.add(menuItem(disconnectAllAction));
+        file.addSeparator();
+        file.add(menuItem(exportProfilesAction));
+        file.add(menuItem(importProfilesAction));
         file.addSeparator();
         file.add(menuItem(exitAction));
 
@@ -378,6 +388,7 @@ public final class MainFrame extends JFrame {
         if (p != null) {
             m.add(item("Edit Profile...", MenuIcons.Glyph.EDIT, () -> editProfile(p)));
             m.add(item("Duplicate Profile", MenuIcons.Glyph.COPY, () -> duplicate(p)));
+            m.add(item("Export Profile to File...", MenuIcons.Glyph.EXPORT, () -> exportProfiles(List.of(p))));
             m.add(item("Delete Profile", MenuIcons.Glyph.TRASH, () -> deleteProfile(p)));
         }
         return m;
@@ -437,6 +448,78 @@ public final class MainFrame extends JFrame {
         profiles.add(c);
         listModel.addElement(c);
         persistProfiles();
+    }
+
+    private void exportProfiles(List<ConnectionProfile> which) {
+        String title = "Export Profiles to File";
+        if (which.isEmpty()) {
+            Ui.info(this, title, "There are no profiles to export yet.");
+            return;
+        }
+        Path f = Ui.choose(this, title + " - save " + which.size() + " profile(s), without passwords", true);
+        if (f == null) {
+            return;
+        }
+        try {
+            ProfileStore.exportTo(which, f);
+            Ui.info(this, title, "Saved " + which.size() + " profile(s) to " + f
+                    + "\n\nPasswords are not included, so whoever imports them will enter their own.");
+        } catch (Exception e) {
+            Ui.error(this, "Export failed", e);
+        }
+    }
+
+    private void importProfiles() {
+        String title = "Import Profiles from File";
+        Path f = Ui.choose(this, title + " - choose a profiles file", false);
+        if (f == null) {
+            return;
+        }
+        List<ConnectionProfile> found;
+        try {
+            found = ProfileStore.importFrom(f);
+        } catch (Exception e) {
+            Ui.error(this, "Import failed", e);
+            return;
+        }
+        if (found.isEmpty()) {
+            Ui.info(this, title, "The file contains no profiles.");
+            return;
+        }
+        if (!Ui.confirm(this, title, "Add " + found.size() + " profile(s) from " + f.getFileName() + "?")) {
+            return;
+        }
+        List<String> renamed = new ArrayList<>();
+        for (ConnectionProfile p : found) {
+            String wanted = p.name.isBlank() ? "Imported profile" : p.name;
+            String name = wanted;
+            for (int n = 2; nameTaken(name); n++) {
+                name = wanted + " (" + n + ")";
+            }
+            if (!name.equals(p.name)) {
+                renamed.add(p.name + " -> " + name);
+            }
+            p.name = name;
+            profiles.add(p);
+            listModel.addElement(p);
+        }
+        persistProfiles();
+        StringBuilder msg = new StringBuilder("Added " + found.size() + " profile(s).");
+        if (!renamed.isEmpty()) {
+            msg.append("\n\nRenamed because the name was already in use:\n  ").append(String.join("\n  ", renamed));
+        }
+        msg.append("\n\nNo passwords come with a profile. You will be asked for the user password when you connect;"
+                + " if a profile uses key store or trust store passwords, add them with Edit Profile.");
+        Ui.info(this, title, msg.toString());
+    }
+
+    private boolean nameTaken(String name) {
+        for (ConnectionProfile p : profiles) {
+            if (p.name.equalsIgnoreCase(name)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void deleteProfile(ConnectionProfile p) {
@@ -531,7 +614,7 @@ public final class MainFrame extends JFrame {
             QueueTab tab = new QueueTab(this, conn, queue);
             tabs.addTab(null, tab);
             int idx = tabs.indexOfComponent(tab);
-            tabs.setTabComponentAt(idx, tabHeader(tab, queue + "  [" + p.name + "]"));
+            tabs.setTabComponentAt(idx, tabHeader(tab, queue, p.name));
             tabs.setSelectedIndex(idx);
             updateCentre();
             tab.browse(null);
@@ -564,10 +647,15 @@ public final class MainFrame extends JFrame {
         new QueueHistoryDialog(this, p, this::persistProfiles).setVisible(true);
     }
 
-    private JComponent tabHeader(QueueTab tab, String title) {
+    private JComponent tabHeader(QueueTab tab, String queue, String profile) {
         JPanel h = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         h.setOpaque(false);
-        h.add(new JLabel(title));
+        JLabel title = new JLabel(queue + "  [" + profile + "]");
+        // "QUEUE (12)  [profile]", or "(12 of 5,000)" when the grid is limited by Max messages
+        tab.onCount((shown, depth) -> title.setText(queue
+                + (shown < depth ? " (" + shown + " of " + depth + ")" : " (" + shown + ")")
+                + "  [" + profile + "]"));
+        h.add(title);
         JButton x = new JButton("×");
         x.setBorder(BorderFactory.createEmptyBorder(0, 4, 0, 4));
         x.setContentAreaFilled(false);

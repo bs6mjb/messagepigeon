@@ -17,6 +17,11 @@ final class QueueTab extends JPanel {
         T call() throws Exception;
     }
 
+    /** A job that reports how far it has got. */
+    private interface ProgressJob<T> {
+        T call(MqService.Progress progress) throws Exception;
+    }
+
     private final Frame owner;
     private final Connection conn;
     private final String queue;
@@ -25,7 +30,9 @@ final class QueueTab extends JPanel {
     private final JTextField maxField = new JTextField(Integer.toString(MAX_DEFAULT), 6);
     private final MessageViewer viewer = new MessageViewer();
     private final JLabel status = new JLabel(" ");
+    private final JProgressBar progressBar = new JProgressBar(0, 100);
     private boolean busy;
+    private java.util.function.BiConsumer<Integer, Integer> countListener = (shown, depth) -> { };
     private final JMenuItem viewItem = iconItem("View / Edit Message...", MenuIcons.Glyph.VIEW,
             "View or edit the highlighted message");
     private final JMenuItem exportSelItem = iconItem("Export Selected to File...", MenuIcons.Glyph.EXPORT_SELECTED,
@@ -72,11 +79,22 @@ final class QueueTab extends JPanel {
 
         JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, new JScrollPane(table), viewer);
         split.setResizeWeight(0.7);
-        status.setBorder(BorderFactory.createEmptyBorder(3, 8, 3, 8));
 
         add(bar, BorderLayout.NORTH);
         add(split, BorderLayout.CENTER);
-        add(status, BorderLayout.SOUTH);
+        progressBar.setStringPainted(true);
+        progressBar.setVisible(false);
+        JPanel south = new JPanel(new BorderLayout(8, 0));
+        south.add(status, BorderLayout.CENTER);
+        south.add(progressBar, BorderLayout.EAST);
+        south.setBorder(BorderFactory.createEmptyBorder(0, 0, 3, 8));
+        status.setBorder(BorderFactory.createEmptyBorder(3, 8, 3, 8));
+        add(south, BorderLayout.SOUTH);
+    }
+
+    /** Told, after each read of the queue, how many messages the grid shows and how many are on the queue. */
+    void onCount(java.util.function.BiConsumer<Integer, Integer> listener) {
+        countListener = listener;
     }
 
     Connection connection() {
@@ -169,11 +187,12 @@ final class QueueTab extends JPanel {
         }
         int max = max();
         setStatus("Reading " + queue + "...");
-        run(() -> new Object[] {conn.mq.depth(queue), conn.mq.browse(queue, max)}, result -> {
+        runWithProgress(progress -> new Object[] {conn.mq.depth(queue), conn.mq.browse(queue, max, progress)}, result -> {
             @SuppressWarnings("unchecked")
             List<MessageRecord> msgs = (List<MessageRecord>) ((Object[]) result)[1];
             int depth = (Integer) ((Object[]) result)[0];
             model.set(msgs);
+            countListener.accept(msgs.size(), depth);
             viewer.clear();
             setStatus((note == null ? "" : note + " - ") + queue + ": depth " + depth + ", showing " + msgs.size()
                     + (msgs.size() < depth ? " (raise Max messages to see more)" : ""));
@@ -272,12 +291,14 @@ final class QueueTab extends JPanel {
                 return;
             }
             setStatus("Adding files from " + dir + "...");
-            run(() -> {
+            runWithProgress(progress -> {
                 List<MessageRecord> recs = new ArrayList<>();
+                int read = 0;
                 for (java.nio.file.Path p : r.files()) {
                     recs.add(MqService.fileMessage(p));
+                    progress.step("Reading files", ++read, r.files().size());
                 }
-                return conn.mq.put(queue, recs);
+                return conn.mq.put(queue, recs, progress);
             }, n -> browse("Added " + n + " messages from " + dir.getFileName() + " (" + r.describe() + ")"),
                     "Add from folder failed");
         }, "Could not read the folder");
@@ -305,7 +326,8 @@ final class QueueTab extends JPanel {
             if (!Ui.confirm(this, title, "Add " + recs.size() + " messages (one per line) to " + queue + "?")) {
                 return;
             }
-            run(() -> conn.mq.put(queue, recs), n -> browse("Added " + n + " messages"), "Add failed");
+            runWithProgress(progress -> conn.mq.put(queue, recs, progress), n -> browse("Added " + n + " messages"),
+                    "Add failed");
         }, "Could not read file");
     }
 
@@ -318,8 +340,8 @@ final class QueueTab extends JPanel {
             return;
         }
         setStatus("Exporting " + queue + "...");
-        run(() -> conn.mq.exportAll(queue, f), n -> setStatus("Exported all " + n + " messages to " + f),
-                "Export failed");
+        runWithProgress(progress -> conn.mq.exportAll(queue, f, progress),
+                n -> setStatus("Exported all " + n + " messages to " + f), "Export failed");
     }
 
     private void exportSelected() {
@@ -331,12 +353,14 @@ final class QueueTab extends JPanel {
         if (f == null) {
             return;
         }
-        try {
-            MqService.exportRecords(sel, f, conn.profile.queueManager + " / " + queue + " (selected messages)");
-            setStatus("Exported " + sel.size() + " selected message(s) to " + f);
-        } catch (Exception e) {
-            Ui.error(this, "Export failed", e);
+        if (busyNow()) {
+            return;
         }
+        String source = conn.profile.queueManager + " / " + queue + " (selected messages)";
+        runWithProgress(progress -> {
+            MqService.exportRecords(sel, f, source, progress);
+            return sel.size();
+        }, n -> setStatus("Exported " + n + " selected message(s) to " + f), "Export failed");
     }
 
     void importFile() {
@@ -349,7 +373,8 @@ final class QueueTab extends JPanel {
             return;
         }
         setStatus("Importing...");
-        run(() -> conn.mq.importBackup(queue, f), n -> browse("Imported " + n + " messages"), "Import failed");
+        runWithProgress(progress -> conn.mq.importBackup(queue, f, progress), n -> browse("Imported " + n + " messages"),
+                "Import failed");
     }
 
     void deleteSelected() {
@@ -428,8 +453,50 @@ final class QueueTab extends JPanel {
         }
     }
 
+    /**
+     * Like {@link #run}, but shows a progress bar and a running "n of N" line while the job works. Progress arrives
+     * on the worker thread, so it is thinned out to a few updates a second before it touches the UI.
+     */
+    private <T> void runWithProgress(ProgressJob<T> job, Consumer<T> onOk, String failStatus) {
+        long[] last = {0};
+        showProgress("Starting...", 0, -1);
+        run(() -> {
+            try {
+                return job.call((phase, done, total) -> {
+                    long now = System.nanoTime();
+                    if (now - last[0] < 100_000_000L && done != total) {
+                        return;
+                    }
+                    last[0] = now;
+                    SwingUtilities.invokeLater(() -> showProgress(phase, done, total));
+                });
+            } finally {
+                SwingUtilities.invokeLater(() -> progressBar.setVisible(false));
+            }
+        }, onOk, failStatus);
+    }
+
+    private void showProgress(String phase, int done, int total) {
+        if (!busy) {
+            return; // a late update after the operation finished
+        }
+        progressBar.setVisible(true);
+        if (total <= 0) {
+            progressBar.setIndeterminate(true);
+            progressBar.setString("");
+            setStatus(phase + "...");
+            return;
+        }
+        int pct = (int) (done * 100L / total);
+        progressBar.setIndeterminate(false);
+        progressBar.setValue(pct);
+        progressBar.setString(pct + "%");
+        setStatus(phase + ": " + done + " of " + total);
+    }
+
     private void fail(String failStatus, Throwable t) {
         setBusy(false);
+        progressBar.setVisible(false);
         setStatus(failStatus);
         Ui.error(this, "Operation failed", t);
     }

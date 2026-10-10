@@ -73,6 +73,7 @@ until a queue tab is open. Every menu item, and every item on the right-click me
 <tr><td>New Profile...</td><td>Creates a profile.</td></tr>
 <tr><td>Edit Profile...</td><td>Changes a profile. If it is connected you are asked to disconnect first.</td></tr>
 <tr><td>Duplicate Profile</td><td>Makes a copy named "<i>name</i> (copy)", handy for a similar queue manager or channel.</td></tr>
+<tr><td>Export Profile to File...</td><td>Saves just this profile to a file (see <a href="#shareprofiles">Sharing profiles</a>).</td></tr>
 <tr><td>Delete Profile</td><td>Removes the profile after you confirm. It never touches the queue manager.</td></tr>
 </table>
 <p>Right-clicking empty space in the sidebar offers just <b>New Profile...</b>.</p>
@@ -99,6 +100,20 @@ whole profile folder as you, because the key sits beside the data.</p>
 <p>If you leave the connection password blank for a profile that has a User ID, MessagePigeon asks for it each time you
 connect and does not save it.</p>
 
+<a name="shareprofiles"></a>
+<h3>Sharing profiles</h3>
+<p><b>File &gt; Export Profiles to File...</b> saves all your profiles to a text file (or use <b>Export Profile to File...</b>
+on a profile's right-click menu for just that one). <b>File &gt; Import Profiles from File...</b> adds the profiles in
+such a file to your list.</p>
+<ul>
+<li><b>No passwords are ever written to the file</b> - not the connection password and not the key store or trust store
+passwords, not even encrypted. Your queue history is left out too.</li>
+<li>After an import you are asked for the user password when you connect. If the profile uses key store or trust store
+passwords, add them with <b>Edit Profile...</b>. Key store and trust store <i>paths</i> are copied as they were, so change
+them if the files live elsewhere on the other machine.</li>
+<li>An imported profile whose name is already in use is renamed, for example "Dev QM (2)". Nothing existing is replaced.</li>
+</ul>
+
 <a name="tls"></a>
 <h2>4. Secure connections (TLS)</h2>
 <p>Tick <b>Use TLS</b> to enable the TLS fields:</p>
@@ -123,6 +138,9 @@ the trust store chooser starts in the same place).</p>
 <h2>5. Opening and browsing a queue</h2>
 <p>Opening a queue reads its messages <b>without removing them</b>. If the queue is already open in a tab, that tab is
 selected and refreshed instead of opening a second one.</p>
+
+<p>The tab's title shows how many messages the grid holds, for example <b>ORDERS (12)</b>. If <b>Max messages</b> is
+cutting the list short it reads <b>ORDERS (1000 of 2500)</b>. It updates each time the queue is read.</p>
 
 <h3>Queue history</h3>
 <p>The Open Queue box remembers the last 20 queue names you opened, <b>separately for each profile</b>, so a profile
@@ -252,6 +270,15 @@ it, to move messages between queues or queue managers, or to read messages offli
 clear the queue first.</li>
 </ul>
 
+<h3>Progress</h3>
+<p>Reading a queue into the grid (opening it, or Refresh) shows the same bar with a counter, for example "Reading messages:
+340 of 1000", which matters when the messages are large.</p>
+<p>Exporting, importing and the two Add From File / Folder actions show a progress bar and a running count at the bottom
+of the tab, for example "Adding messages: 800 of 1200". The last step, "Committing", is MQ making the new messages
+permanent. Messages are added in batches of 500, each committed as it completes, so a very large import never sits in one
+huge unit of work. If something fails part-way, the batch in progress is backed out, but batches already committed stay on
+the queue, so check the depth and re-run what is missing.</p>
+
 <h3>The file format</h3>
 <p>Each message is a block of <code>name: value</code> header lines, a line containing <code>---</code>, the message
 text exactly as it was on the queue, and an end line:</p>
@@ -300,6 +327,8 @@ clear authority.</p>
 <tr><td>File</td><td>Open Queue...</td><td>Ctrl+O</td><td>For the profile highlighted in the sidebar.</td></tr>
 <tr><td>File</td><td>Close Tab</td><td>Ctrl+W</td><td>Closes the current queue tab.</td></tr>
 <tr><td>File</td><td>Disconnect All</td><td></td><td>Closes every connection and all tabs.</td></tr>
+<tr><td>File</td><td>Export Profiles to File...</td><td></td><td>Without passwords.</td></tr>
+<tr><td>File</td><td>Import Profiles from File...</td><td></td><td>Adds to your profiles.</td></tr>
 <tr><td>File</td><td>Exit</td><td>Ctrl+Q</td><td>Disconnects cleanly, then quits.</td></tr>
 <tr><td>Queue</td><td>Refresh</td><td>F5</td><td>These items work on the current tab and are greyed out when no queue is open.</td></tr>
 <tr><td>Queue</td><td>Insert Message...</td><td></td><td></td></tr>

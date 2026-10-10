@@ -89,6 +89,15 @@ public final class ConnectionProfile {
         return m;
     }
 
+    /** The fields that are safe and useful to share: no passwords, and none of this user's queue history. */
+    public Map<String, String> toSharedMap() {
+        Map<String, String> m = toMap();
+        m.keySet().removeAll(SECRET_FIELDS);
+        m.remove("lastQueue");
+        m.remove("recentQueues");
+        return m;
+    }
+
     public static ConnectionProfile fromMap(Map<String, String> m) {
         ConnectionProfile p = new ConnectionProfile();
         p.name = m.getOrDefault("name", "");
