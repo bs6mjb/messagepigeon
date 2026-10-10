@@ -1,0 +1,44 @@
+THIRD-PARTY SOFTWARE AND TRADEMARKS
+
+--------------------------------------------------------------------------------
+NOT INCLUDED: IBM MQ classes for Java and JMS   (com.ibm.mq.allclient)
+
+  Copyright IBM Corporation.
+  Licence: IBM International Program License Agreement
+  https://www14.software.ibm.com/cgi-bin/weblap/lap.pl?li_formnum=L-RZND-SLUBFC
+
+  This is proprietary software, not open source, and it is NOT part of MessagePigeon. MessagePigeon needs it to talk
+  to IBM MQ, so on first start it asks you to locate your own copy of com.ibm.mq.allclient.jar and loads it from
+  where you keep it. IBM's licence terms apply to your copy.
+
+--------------------------------------------------------------------------------
+INCLUDED IN THE MESSAGEPIGEON JAR
+
+The runnable jar bundles the open-source libraries below. Each is the property of its owners and is used under its
+own licence, which applies to that component only.
+
+Bouncy Castle   (bcprov-jdk18on, bcpkix-jdk18on, bcutil-jdk18on 1.78.1)
+
+  Copyright The Legion of the Bouncy Castle Inc.
+  Licence: Bouncy Castle Licence (an MIT-style licence)
+  https://www.bouncycastle.org/licence.html
+
+Java Message Service API   (javax.jms-api 2.0.1)
+
+  Licence: dual-licensed under the Common Development and Distribution License (CDDL) 1.1 and the GNU General
+  Public License version 2 with the Classpath Exception.
+  https://glassfish.java.net/nonav/public/CDDL+GPL_1_1.html
+
+org.json   (JSON-java 20240303)
+
+  Licence: Public Domain
+  https://github.com/stleary/JSON-java/blob/master/LICENSE
+
+--------------------------------------------------------------------------------
+TRADEMARKS
+
+  IBM and MQ are trademarks of International Business Machines Corporation, registered in many jurisdictions
+  worldwide. All other product and company names are trademarks of their respective owners.
+
+  MessagePigeon is an independent project. It is not affiliated with, sponsored by or endorsed by IBM. "IBM MQ"
+  appears in this program only to say which messaging system it works with.

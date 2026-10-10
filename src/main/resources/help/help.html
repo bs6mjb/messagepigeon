@@ -1,0 +1,392 @@
+<html>
+<head>
+<title>MessagePigeon Help</title>
+<style>
+body { font-family: Segoe UI, Arial, sans-serif; font-size: 13px; margin-left: 24px; margin-right: 24px; margin-top: 12px; }
+h1 { color: #16305C; font-size: 24px; }
+h2 { color: #1F4E9E; font-size: 18px; margin-top: 22px; }
+h3 { color: #1F4E9E; font-size: 14px; }
+code { font-family: Consolas, Courier New, monospace; background-color: #EEF2F7; }
+pre { font-family: Consolas, Courier New, monospace; background-color: #EEF2F7; }
+table { border-collapse: collapse; }
+th { background-color: #DCE6F2; text-align: left; }
+.note { background-color: #FFF6E0; }
+</style>
+</head>
+<body>
+<a name="top"></a>
+<h1>MessagePigeon Help</h1>
+<p>MessagePigeon lets you look at, edit, back up and restore the messages on IBM MQ queues without writing any code.
+Browsing a queue is always safe: it reads messages without removing them. Anything that changes a queue asks you
+first.</p>
+
+<h3>Contents</h3>
+<ol>
+<li><a href="#start">Getting started</a></li>
+<li><a href="#window">The main window</a></li>
+<li><a href="#profiles">Connection profiles</a></li>
+<li><a href="#tls">Secure connections (TLS)</a></li>
+<li><a href="#queues">Opening and browsing a queue</a></li>
+<li><a href="#message">Viewing and editing a message</a></li>
+<li><a href="#insert">Adding messages</a></li>
+<li><a href="#export">Exporting and importing</a></li>
+<li><a href="#delete">Deleting messages</a></li>
+<li><a href="#menus">Menus and keyboard shortcuts</a></li>
+<li><a href="#exe">Starting the program (the exe and Java)</a></li>
+<li><a href="#docker">A local test queue manager</a></li>
+<li><a href="#trouble">Troubleshooting</a></li>
+<li><a href="#files">Where settings are kept</a></li>
+</ol>
+
+<a name="start"></a>
+<h2>1. Getting started</h2>
+<ol>
+<li>Click <b>+ New Profile</b> at the bottom of the sidebar and fill in the queue manager details
+(see <a href="#profiles">Connection profiles</a>). Click <b>Save</b>.</li>
+<li>Right-click the profile and choose <b>Open Queue...</b> (or double-click it).</li>
+<li>Type the queue name and click <b>OK</b>. MessagePigeon connects (asking for the password if you did not save one)
+and shows the queue's messages in a new tab.</li>
+<li>Double-click a message to read or edit it.</li>
+</ol>
+
+<a name="window"></a>
+<h2>2. The main window</h2>
+<ul>
+<li><b>Sidebar (left)</b> lists your profiles. A <font color="#2E9E4F">green</font> dot means connected,
+amber means connecting, grey means not connected. Hover over a profile to see its host, queue manager and channel.</li>
+<li><b>Tabs (right)</b>: every queue you open gets its own tab, named <code>QUEUE [profile]</code>. You can have
+many queues open at once, on one queue manager or several. Click the &times; on a tab to close it.</li>
+<li><b>Menu bar</b> has File, Queue and Help (see <a href="#menus">Menus and keyboard shortcuts</a>).</li>
+<li><b>Icon bar</b> under the menu bar has a button for each of the common menu actions: new profile, open queue,
+disconnect, refresh, close tab, insert, add from file, add from folder, export, import, delete selected, delete all,
+and help. Hover over a button to see what it does and its keyboard shortcut. Buttons that work on a queue are faded
+until a queue tab is open. Every menu item, and every item on the right-click menus, has a matching icon.</li>
+</ul>
+
+<h3>The profile menu</h3>
+<p>Right-click a profile in the sidebar:</p>
+<table border="1" cellpadding="5">
+<tr><th>Item</th><th>What it does</th></tr>
+<tr><td>Open Queue...</td><td>Asks for a queue name, connects if needed, and opens it in a tab. The drop-down remembers your recent queues for that profile.</td></tr>
+<tr><td>Connect / Disconnect</td><td>Connects without opening a queue, or closes the connection and all of its tabs.</td></tr>
+<tr><td>Queue History...</td><td>Opens a grid of the queues remembered for this profile, where you can remove some or clear them all (greyed out when there are none).</td></tr>
+<tr><td>New Profile...</td><td>Creates a profile.</td></tr>
+<tr><td>Edit Profile...</td><td>Changes a profile. If it is connected you are asked to disconnect first.</td></tr>
+<tr><td>Duplicate Profile</td><td>Makes a copy named "<i>name</i> (copy)", handy for a similar queue manager or channel.</td></tr>
+<tr><td>Delete Profile</td><td>Removes the profile after you confirm. It never touches the queue manager.</td></tr>
+</table>
+<p>Right-clicking empty space in the sidebar offers just <b>New Profile...</b>.</p>
+
+<a name="profiles"></a>
+<h2>3. Connection profiles</h2>
+<p>A profile holds everything needed to reach a queue manager. The fields, in order:</p>
+<table border="1" cellpadding="5">
+<tr><th>Field</th><th>Meaning</th></tr>
+<tr><td>Profile name</td><td>The label shown in the sidebar.</td></tr>
+<tr><td>Queue manager</td><td>The queue manager's name, for example <code>QM1</code>. Required.</td></tr>
+<tr><td>Host</td><td>The machine the queue manager's listener runs on. Required.</td></tr>
+<tr><td>Port</td><td>The listener port, usually <code>1414</code>. Digits only, from 1 to 65535.</td></tr>
+<tr><td>Channel</td><td>The server-connection (SVRCONN) channel to use. Required.</td></tr>
+<tr><td>User ID / Password</td><td>Optional. Leave both blank if the channel does not need a login.</td></tr>
+<tr><td>Use TLS and the fields below it</td><td>See <a href="#tls">Secure connections</a>.</td></tr>
+</table>
+
+<h3>Passwords</h3>
+<p>Passwords (the connection password and the key store and trust store passwords) are never saved as plain
+text. They are encrypted with AES-256-GCM, using a random key created on first run and stored in a file that only
+your Windows account can read. Be aware that this does not protect against someone who can already read your
+whole profile folder as you, because the key sits beside the data.</p>
+<p>If you leave the connection password blank for a profile that has a User ID, MessagePigeon asks for it each time you
+connect and does not save it.</p>
+
+<a name="tls"></a>
+<h2>4. Secure connections (TLS)</h2>
+<p>Tick <b>Use TLS</b> to enable the TLS fields:</p>
+<ul>
+<li><b>TLS protocol</b>: TLSv1.2 or TLSv1.3.</li>
+<li><b>Cipher suite</b>: choose one from the list or type one. Use Java (JSSE) names such as
+<code>TLS_AES_256_GCM_SHA384</code> (TLS 1.3) or <code>TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384</code> (TLS 1.2).
+If you leave it blank a sensible one is chosen to match the protocol. The channel on the queue manager must allow it.</li>
+<li><b>Peer name (DN)</b>: optional. If given, the queue manager's certificate must have a matching distinguished name.</li>
+<li><b>Key store</b>: your client certificate and private key, needed only when the channel requires a client
+certificate (mutual TLS).</li>
+<li><b>Trust store</b>: the certificate (or its certificate authority) that vouches for the queue manager's own
+certificate. Almost always required.</li>
+</ul>
+<p>Key stores and trust stores can be <b>PKCS12</b> (<code>.p12</code>, <code>.pfx</code>), <b>JKS</b>
+(<code>.jks</code>) or <b>JCEKS</b>. The type is filled in for you from the file extension when you choose the file;
+you can still change it. Each store has its own password. The file chooser behind each <b>...</b> button opens in the
+folder of the file already in that box, otherwise in the folder you last browsed in (so after picking the key store,
+the trust store chooser starts in the same place).</p>
+
+<a name="queues"></a>
+<h2>5. Opening and browsing a queue</h2>
+<p>Opening a queue reads its messages <b>without removing them</b>. If the queue is already open in a tab, that tab is
+selected and refreshed instead of opening a second one.</p>
+
+<h3>Queue history</h3>
+<p>The Open Queue box remembers the last 20 queue names you opened, <b>separately for each profile</b>, so a profile
+only ever offers its own queues. Pick one from the drop-down or type a new name.</p>
+<p>To tidy the list, right-click the profile and choose <b>Queue History...</b>. A window opens with a grid of that
+profile's remembered queues, most recent first:</p>
+<ul>
+<li>Highlight one or more rows (hold Ctrl or Shift for several) and click <b>Remove Selected</b>, or press the
+Delete key, to forget just those queues.</li>
+<li>Click <b>Clear All...</b> to forget every queue for the profile, after you confirm.</li>
+</ul>
+<p>Changes are saved straight away. This only forgets names in MessagePigeon; it never touches the queue manager or
+the queues.</p>
+
+<h3>Working with the queue</h3>
+<p>Each queue tab has one setting of its own, at the top: <b>Max messages</b>, how many messages to read, oldest
+first (default 1000). Press Enter in the box, or click Refresh, to apply a new value. The status bar tells you when
+the queue holds more messages than you are showing.</p>
+<p>Everything else is done with the <b>icon bar</b>, the <b>Queue menu</b> or the right-click menu, and always acts on
+the tab you are looking at:</p>
+<table border="1" cellpadding="5">
+<tr><th>Action</th><th>What it does</th></tr>
+<tr><td>Refresh</td><td>Reads the queue again.</td></tr>
+<tr><td>Insert Message...</td><td>Adds one message that you type (see <a href="#insert">Adding messages</a>).</td></tr>
+<tr><td>Add From File...</td><td>Adds one message per line of a text file.</td></tr>
+<tr><td>Add From Folder...</td><td>Adds one message per file in a folder, optionally only certain file types, in name or date-modified order.</td></tr>
+<tr><td>Export to File...</td><td>Writes every message on the queue to a file.</td></tr>
+<tr><td>Import from File...</td><td>Puts the messages from an export file onto the queue.</td></tr>
+<tr><td>Delete Selected...</td><td>Removes the highlighted messages.</td></tr>
+<tr><td>Delete All Messages...</td><td>Empties the queue.</td></tr>
+</table>
+<p>While one of these is running, starting another is refused with a note in the status bar; wait for it to finish.</p>
+
+<h3>The message grid</h3>
+<p>Each row is a message. Columns: sequence number, put date and time, Message ID, format, persistence, priority,
+size in bytes, and a one-line preview of the text. Click a column heading to sort. Hold Ctrl or Shift to highlight
+several rows.</p>
+<p>The pane below the grid is a read-only viewer for the highlighted message. It shows the headers, and the data with
+the same <b>View as</b> choices as the message window: <b>Text</b> (the default), <b>XML</b>, <b>JSON</b>, <b>Tree</b>
+and <b>Hex</b>. XML, JSON and Tree are offered only when the message really is XML or JSON, and are greyed out
+otherwise. The view you pick is remembered as you click from message to message; if a message cannot be shown that
+way (for example you chose XML but the next message is plain text), it is shown as Text until you reach one that can.
+To change a message, double-click it to open the message window. With several rows highlighted, the pane just says
+how many are selected.</p>
+<p>The status bar shows the queue's depth and how many messages are displayed.</p>
+<p>The order shown is the order the queue manager would deliver messages: highest priority first, then oldest first.</p>
+
+<h3>Right-click a message</h3>
+<ul>
+<li><b>View / Edit Message...</b> (one message highlighted): opens the message window.</li>
+<li><b>Export Selected to File...</b>: writes only the highlighted messages to a file.</li>
+<li><b>Delete Selected...</b>: removes the highlighted messages.</li>
+<li><b>Select All</b>.</li>
+</ul>
+<p>Double-clicking a row also opens the message window.</p>
+
+<a name="message"></a>
+<h2>6. Viewing and editing a message</h2>
+<p>Double-click a message to open its own window. The top shows every header: Message ID, Correlation ID, put time,
+format, CCSID and encoding, size, who put it and from which application, persistence, priority and the reply-to queue
+and queue manager. Persistence, priority and the two reply-to fields can be changed.</p>
+
+<h3>View as</h3>
+<p>The window always opens on <b>Text</b>. Choose another view with the buttons above the data:</p>
+<table border="1" cellpadding="5">
+<tr><th>View</th><th>Shows</th></tr>
+<tr><td>Text</td><td>The message as plain text. This is the only view you type in.</td></tr>
+<tr><td>XML</td><td>Indented, colour-coded XML. Available only when the text is well-formed XML.</td></tr>
+<tr><td>JSON</td><td>Indented, colour-coded JSON. Available only when the text is valid JSON.</td></tr>
+<tr><td>Tree</td><td>A collapsible tree of the XML or JSON, good for large messages.</td></tr>
+<tr><td>Hex</td><td>A hex dump of the bytes, with an ASCII column.</td></tr>
+</table>
+<p>The XML, JSON and Tree choices are greyed out when the text does not qualify. They re-check as you edit, so they
+switch on as soon as your text becomes valid. <b>Format text</b> re-indents XML or JSON in the editor itself.</p>
+
+<h3>Saving your changes</h3>
+<ul>
+<li><b>Save to Queue</b> replaces the original message with your edited version. MQ cannot change a message in
+place, so MessagePigeon removes the original and puts the edited one back as one all-or-nothing step: if anything
+goes wrong the queue is left exactly as it was. The edited message <b>keeps the original's Message ID</b>, but it
+joins the queue behind other messages of the same priority and gets a new put time. If someone else removed the
+original in the meantime, nothing is changed and you are told.</li>
+<li><b>Put as New Message</b> adds your edited version as a new message and leaves the original alone.</li>
+<li><b>Close</b> asks before discarding unsaved edits.</li>
+</ul>
+<p class="note"><b>Binary messages</b> (content that is not valid text) are shown read-only, with a warning, so that
+editing cannot corrupt them. Use the Hex view to inspect them. Unedited messages are always written back with their
+exact original bytes.</p>
+
+<a name="insert"></a>
+<h2>7. Adding messages</h2>
+<ul>
+<li><b>Insert Message...</b> opens a box to type or paste the message text. You can also choose persistent or
+non-persistent, a priority from 0 to 9, and a reply-to queue.</li>
+<li><b>Add From File...</b> reads a plain text file (UTF-8) and puts <b>one message per line</b>. Blank lines are
+skipped, and you see the count and confirm before anything is added. A MessagePigeon export file is refused here: use
+<b>Import from File</b> for those.</li>
+<li><b>Add From Folder...</b> asks you to choose a folder and puts <b>one message per file</b>, with the whole file
+as the message. This is the way to add messages that run over several lines, such as XML or JSON documents. Before
+anything is added, a window lets you narrow down and order the files:
+<ul>
+<li><b>File types</b>: type one or more extensions, separated by commas or spaces (for example <code>xml, json</code>;
+a leading dot or <code>*.</code> is fine and case is ignored), to add only those files. Leave it empty to add every
+file. The window shows at once how many files match, their total size, and which would go first and last.</li>
+<li><b>Order</b>: <b>File name</b> (A to Z, ignoring case, the default), <b>Date modified, oldest first</b>, or
+<b>Date modified, newest first</b>. Files with the same modified time fall back to name order. The order is the order
+the messages are put on the queue, and so the order they are delivered in. The window remembers your choices for the
+rest of the session.</li>
+<li>The <b>Add</b> button is greyed out when no file matches, or when a file or the total is over MQ's limits.</li>
+<li>Only the files directly in the folder are used. Subfolders, hidden files and empty files are skipped.</li>
+<li>A file that is UTF-8 text becomes a text message (a leading byte order mark is dropped). Any other file, such as an
+image or a zip, is added as raw bytes with no format.</li>
+<li>One message can be at most 100 MB (MQ's own limit), and one batch at most 256 MB. The file name is not stored
+in the message.</li>
+</ul></li>
+</ul>
+<p>Large additions are committed in batches of 500; if there is an error, the current batch is rolled back.</p>
+
+<a name="export"></a>
+<h2>8. Exporting and importing</h2>
+<p>An export is a plain text file you can open in any editor. Use it to keep a copy of a queue before you change
+it, to move messages between queues or queue managers, or to read messages offline.</p>
+<ul>
+<li><b>Export to File...</b> (icon bar or Queue menu) writes <b>all</b> messages on the queue. It does not remove them.</li>
+<li><b>Export Selected to File...</b> (right-click a highlighted group of messages) writes only those messages.</li>
+<li><b>Import from File...</b> reads an export file and <b>adds</b> its messages to the queue you are looking at. It does not
+clear the queue first.</li>
+</ul>
+
+<h3>The file format</h3>
+<p>Each message is a block of <code>name: value</code> header lines, a line containing <code>---</code>, the message
+text exactly as it was on the queue, and an end line:</p>
+<pre>
+=== MESSAGE 1 ===
+format: MQSTR
+ccsid: 1208
+persistence: persistent
+priority: 5
+correlId: 000000000000000000000000000000000000000000000000
+msgId (info): 414D5120514D31...
+boundary: === END OF MESSAGE ===
+---
+{"orderId": 1001, "amount": 249.99}
+=== END OF MESSAGE ===
+</pre>
+<ul>
+<li>You can edit the message text or the header values before importing. Lines marked <code>(info)</code>
+(Message ID, put time and so on) are ignored on import.</li>
+<li>Imported messages get new Message IDs, because MQ assigns them.</li>
+<li>Binary messages are written as Base64 and marked <code>data-encoding: base64</code>, so nothing is lost.</li>
+<li>If the text itself contains the end line, the writer lengthens it so the file still reads back correctly.</li>
+<li>The first line of the file must be <code>#MESSAGEPIGEON-EXPORT-V2</code>; anything else is refused.</li>
+</ul>
+
+<a name="delete"></a>
+<h2>9. Deleting messages</h2>
+<p class="note"><b>Deleting removes messages from the queue permanently.</b> Do an Export to File first if you might want
+them back.</p>
+<ul>
+<li><b>Delete Selected...</b> (icon bar, Queue menu or right-click): removes the highlighted messages after you
+confirm. Each is matched by its Message ID, so a message that has already gone is simply skipped.</li>
+<li><b>Delete All Messages...</b>: removes every message on the queue. To avoid accidents a box asks you to <b>type the
+queue name</b> to confirm. If what you type does not match the queue name (stray spaces at either end are ignored),
+you are told so and nothing is deleted.</li>
+</ul>
+<p>You need the right MQ authority for each action: browse and inquire to look at a queue, get to delete or replace a
+message, and put to add one. Delete All removes messages one at a time, so it needs get authority rather than
+clear authority.</p>
+
+<a name="menus"></a>
+<h2>10. Menus and keyboard shortcuts</h2>
+<table border="1" cellpadding="5">
+<tr><th>Menu</th><th>Item</th><th>Shortcut</th><th>Notes</th></tr>
+<tr><td>File</td><td>New Profile...</td><td>Ctrl+N</td><td></td></tr>
+<tr><td>File</td><td>Open Queue...</td><td>Ctrl+O</td><td>For the profile highlighted in the sidebar.</td></tr>
+<tr><td>File</td><td>Close Tab</td><td>Ctrl+W</td><td>Closes the current queue tab.</td></tr>
+<tr><td>File</td><td>Disconnect All</td><td></td><td>Closes every connection and all tabs.</td></tr>
+<tr><td>File</td><td>Exit</td><td>Ctrl+Q</td><td>Disconnects cleanly, then quits.</td></tr>
+<tr><td>Queue</td><td>Refresh</td><td>F5</td><td>These items work on the current tab and are greyed out when no queue is open.</td></tr>
+<tr><td>Queue</td><td>Insert Message...</td><td></td><td></td></tr>
+<tr><td>Queue</td><td>Add From File...</td><td></td><td></td></tr>
+<tr><td>Queue</td><td>Add From Folder...</td><td></td><td></td></tr>
+<tr><td>Queue</td><td>Export to File...</td><td></td><td></td></tr>
+<tr><td>Queue</td><td>Import from File...</td><td></td><td></td></tr>
+<tr><td>Queue</td><td>Delete Selected...</td><td></td><td>Needs one or more messages highlighted in the grid.</td></tr>
+<tr><td>Queue</td><td>Delete All Messages...</td><td></td><td>Asks you to type the queue name.</td></tr>
+<tr><td>Help</td><td>Help Contents</td><td>F1</td><td>This page. <b>Open in Browser</b> lets you print it.</td></tr>
+<tr><td>Help</td><td>IBM MQ Client Library...</td><td></td><td>Shows which copy of IBM's MQ client library is in use and lets you choose a different one (applies at the next start).</td></tr>
+<tr><td>Help</td><td>About MessagePigeon</td><td></td><td>Version and Java details, the IBM trademark notice, and a Third-party licences window listing the software bundled in the jar.</td></tr>
+</table>
+
+<a name="exe"></a>
+<h2>11. Starting the program (the exe and Java)</h2>
+<p>MessagePigeon needs Java 21 or later. <code>MessagePigeon.exe</code> (kept next to <code>messagepigeon.jar</code>)
+starts the program and looks for a suitable JDK automatically, in this order:</p>
+<ol>
+<li>the folder you chose last time,</li>
+<li>the <code>JAVA_HOME</code> environment variable,</li>
+<li>the <code>PATH</code>,</li>
+<li>the places installers record Java in the registry,</li>
+<li>the usual install folders under Program Files.</li>
+</ol>
+<p>Each is checked and anything older than Java 21 is skipped. If none is found, a window asks you to <b>choose the
+JDK folder</b> (the one <code>JAVA_HOME</code> would point to, for example
+<code>C:\Program Files\Java\jdk-21</code>). The folder is checked, remembered, and used from then on. To be asked
+again, delete <code>java-path.txt</code> (see <a href="#files">Where settings are kept</a>).</p>
+<p>You can also run the jar directly with <code>java -jar messagepigeon.jar</code>.</p>
+
+<h3>IBM's MQ client library</h3>
+<p>IBM licenses its MQ client library (<code>com.ibm.mq.allclient.jar</code>) itself, so it is <b>not included</b> with
+MessagePigeon: you supply your own copy. It is in the <code>java\lib</code> folder of an IBM MQ installation, in IBM's
+MQ redistributable client, and on Maven Central; IBM's licence terms apply to your copy.</p>
+<p>At start-up the program looks for it in this order and uses the first valid one: a copy named with
+<code>-Dmessagepigeon.mqjar=&lt;path&gt;</code> or the <code>MESSAGEPIGEON_MQ_JAR</code> environment variable; the one you
+chose last time; a <code>lib</code> folder (or the same folder) next to the program; an IBM MQ installation. If none is
+found, it explains what is needed and asks you to locate the file. It checks that the file really is IBM's client
+before remembering it.</p>
+<p><b>If the file is moved or deleted</b>, the next start tells you that the copy it was using can no longer be used and
+asks you to locate it again. To switch to a different copy at any time, use <b>Help &gt; IBM MQ Client Library...</b>;
+the change applies the next time the program starts. The About window shows which copy is in use.</p>
+
+<a name="docker"></a>
+<h2>12. A local test queue manager</h2>
+<p>The project includes a ready-made IBM MQ queue manager in Docker for safe experimenting. See
+<code>docker\README.md</code> in the project folder. In short: run <code>generate-certs.ps1</code> and
+<code>setup-env.ps1</code> once, then <code>docker compose up -d</code>. It provides queue manager <code>QM1</code>
+on <code>localhost:1414</code>, a plain channel <code>PIGEON.PLAIN.SVRCONN</code>, a TLS channel
+<code>PIGEON.TLS.SVRCONN</code>, and the queues <code>PIGEON.TEST.QUEUE.1</code> and <code>PIGEON.TEST.QUEUE.2</code>.</p>
+
+<a name="trouble"></a>
+<h2>13. Troubleshooting</h2>
+<p>When something fails, the message shows the MQ <b>reason code</b> and its name, and any underlying cause.
+Common ones:</p>
+<table border="1" cellpadding="5">
+<tr><th>Code</th><th>Name</th><th>Usual cause and fix</th></tr>
+<tr><td>2538</td><td>HOST_NOT_AVAILABLE</td><td>Cannot reach the host and port. Check the spelling of the host, the port, that the queue manager's listener is running, and any firewall.</td></tr>
+<tr><td>2059</td><td>Q_MGR_NOT_AVAILABLE</td><td>The queue manager is not running, or is not reachable on that port.</td></tr>
+<tr><td>2058</td><td>Q_MGR_NAME_ERROR</td><td>The queue manager name does not match the one on that host and port.</td></tr>
+<tr><td>2540</td><td>UNKNOWN_CHANNEL_NAME</td><td>The channel does not exist. Check its name (it is case-sensitive).</td></tr>
+<tr><td>2537</td><td>CHANNEL_NOT_AVAILABLE</td><td>The channel exists but refused the connection, often because of channel authentication rules or a TLS mismatch. The queue manager's error log says why.</td></tr>
+<tr><td>2035</td><td>NOT_AUTHORIZED</td><td>Wrong user or password, or the user lacks authority for the queue manager or the queue.</td></tr>
+<tr><td>2085</td><td>UNKNOWN_OBJECT_NAME</td><td>The queue does not exist. Check the name and its capital letters.</td></tr>
+<tr><td>2393 / 2397 / 2400</td><td>SSL / JSSE / cipher errors</td><td>TLS problems. Check that the cipher suite matches the channel's, the trust store holds the queue manager's certificate, the store password and type are right, and the protocol is allowed.</td></tr>
+<tr><td>2009</td><td>CONNECTION_BROKEN</td><td>The connection dropped. Disconnect and connect again.</td></tr>
+</table>
+<ul>
+<li><b>"Keystore was tampered with, or password was incorrect"</b>: the store password is wrong, or the store type does not match the file. Check both.</li>
+<li><b>The XML, JSON or Tree view is greyed out</b>: the text is not well-formed XML or valid JSON, so there is nothing to format.</li>
+<li><b>Fewer messages than expected</b>: raise <b>Max messages</b> and press Refresh.</li>
+<li><b>The window did not start from the exe</b>: no Java 21+ was found or chosen. Delete <code>java-path.txt</code> and start again to choose a JDK folder.</li>
+<li><b>"MessagePigeon needs IBM's MQ client library" at start-up</b>: no usable copy was found, or the one you chose was moved or deleted. Click OK and locate <code>com.ibm.mq.allclient.jar</code> again.</li>
+<li><b>"A library that IBM's MQ client needs is missing"</b>: the copy in use is incomplete. Use a full copy (for example the one from an IBM MQ installation) via <b>Help &gt; IBM MQ Client Library...</b> and restart.</li>
+</ul>
+
+<a name="files"></a>
+<h2>14. Where settings are kept</h2>
+<p>Everything is in the <code>.messagepigeon</code> folder inside your Windows user folder:</p>
+<table border="1" cellpadding="5">
+<tr><th>File</th><th>Contents</th></tr>
+<tr><td><code>profiles.properties</code></td><td>Your connection profiles, with passwords encrypted.</td></tr>
+<tr><td><code>secret.key</code></td><td>The key used to encrypt those passwords. Keep it with the profiles; without it, saved passwords cannot be read and you would be asked for them again.</td></tr>
+<tr><td><code>java-path.txt</code></td><td>The JDK folder chosen in the exe's start-up prompt.</td></tr>
+</table>
+<p>&nbsp;</p>
+<p><a href="#top">Back to the top</a></p>
+</body>
+</html>

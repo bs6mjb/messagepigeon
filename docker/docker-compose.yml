@@ -1,0 +1,26 @@
+# Local IBM MQ test queue manager for MessagePigeon.
+#   docker compose up -d      (after running certs\generate-certs.ps1 once)
+#   docker compose logs -f mq
+#   docker compose down       (add -v to also discard queue contents)
+services:
+  mq:
+    image: icr.io/ibm-messaging/mq:latest
+    container_name: messagepigeon-test
+    hostname: pigeon-test
+    environment:
+      LICENSE: accept
+      MQ_QMGR_NAME: QM1
+      MQ_APP_PASSWORD: ${MQ_APP_PASSWORD}
+      MQ_ADMIN_PASSWORD: ${MQ_ADMIN_PASSWORD}
+    ports:
+      - "1414:1414"   # queue manager listener
+      - "9443:9443"   # web console  https://localhost:9443/ibmmq/console  (user: admin)
+    volumes:
+      - qmdata:/mnt/mqm
+      - ./config/20-pigeon.mqsc:/etc/mqm/20-pigeon.mqsc:ro
+      # Server certificate (PEM). The image builds its key repository from these automatically.
+      - ./certs/server:/etc/mqm/pki/keys/pigeonserver:ro
+      # Client certificates the queue manager should trust (for mutual TLS).
+      - ./certs/server-trust:/etc/mqm/pki/trust/pigeonclients:ro
+volumes:
+  qmdata:

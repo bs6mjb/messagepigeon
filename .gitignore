@@ -1,0 +1,18 @@
+# build output
+target/
+dist/
+
+# local secrets and generated test material (never commit these)
+docker/.env
+docker/certs/*
+!docker/certs/generate-certs.ps1
+docker/sample-export.txt
+
+# editors and operating systems
+.idea/
+.vscode/
+*.iml
+*.class
+*.log
+Thumbs.db
+.DS_Store

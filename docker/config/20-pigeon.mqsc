@@ -1,0 +1,21 @@
+* Extra definitions for MessagePigeon testing, applied after the image's own DEV.* setup.
+* The image already points the queue manager at the mounted server certificate (see its 15-tls.mqsc).
+
+* Test queues
+DEFINE QLOCAL('PIGEON.TEST.QUEUE.1') DEFPSIST(YES) MAXDEPTH(100000) REPLACE
+DEFINE QLOCAL('PIGEON.TEST.QUEUE.2') DEFPSIST(YES) MAXDEPTH(100000) REPLACE
+
+* TLS channel: TLS 1.2 or higher, client certificate optional (supply one to test mutual TLS).
+DEFINE CHANNEL('PIGEON.TLS.SVRCONN') CHLTYPE(SVRCONN) TRPTYPE(TCP) +
+       SSLCIPH('ANY_TLS12_OR_HIGHER') SSLCAUTH(OPTIONAL) REPLACE
+SET CHLAUTH('PIGEON.TLS.SVRCONN') TYPE(ADDRESSMAP) ADDRESS('*') USERSRC(CHANNEL) +
+    CHCKCLNT(REQUIRED) ACTION(REPLACE)
+
+* Plain-text channel (the image's DEV.APP.SVRCONN is TLS-only), for testing without TLS.
+DEFINE CHANNEL('PIGEON.PLAIN.SVRCONN') CHLTYPE(SVRCONN) TRPTYPE(TCP) REPLACE
+SET CHLAUTH('PIGEON.PLAIN.SVRCONN') TYPE(ADDRESSMAP) ADDRESS('*') USERSRC(CHANNEL) +
+    CHCKCLNT(REQUIRED) ACTION(REPLACE)
+
+* Let the "app" user work with the PIGEON.* queues (browse, get, put, clear).
+SET AUTHREC PROFILE('PIGEON.**') PRINCIPAL('app') OBJTYPE(QUEUE) +
+    AUTHADD(BROWSE, GET, INQ, PUT, DSP, CLR)
