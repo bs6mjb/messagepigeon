@@ -167,7 +167,7 @@ The runnable jar bundles these open-source libraries, each under its own licence
 IBM International Program License Agreement, and you supply and load your own copy at run time (see above), so nothing
 of IBM's is redistributed with this project.
 
-This project's own licence has not been chosen yet; add a `LICENSE` file before publishing.
+MessagePigeon's own code is released under the MIT Licence; see the `LICENSE` file.
 
 ## Notes
 
